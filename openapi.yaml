@@ -1,0 +1,244 @@
+openapi: 3.0.3
+info:
+  title: Real-Time Speaking Partner API
+  description: SENG 321 Sprint 1 API contract for the AI-powered language learning system (Node.js, Express, MySQL, Gemini API).
+  version: 1.0.0
+servers:
+  - url: http://localhost:4499/api/v1
+    description: Local Development Server
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user (FR1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: User successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/login:
+    post:
+      summary: Authenticate user (FR2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /topics:
+    get:
+      summary: Retrieve available conversation topics (FR3)
+      responses:
+        '200':
+          description: A list of topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Topic'
+    post:
+      summary: Create a new topic (Admin only - FR18)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopicInput'
+      responses:
+        '201':
+          description: Topic created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+
+  /sessions/chat:
+    post:
+      summary: Send transcribed text and get AI response (FR6, FR7)
+      description: Processes user speech-to-text input via Gemini API and returns AI response along with grammar feedback (FR10).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessage'
+      responses:
+        '200':
+          description: AI Response and Feedback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{sessionId}/feedback:
+    get:
+      summary: Get detailed session feedback (FR12, FR13)
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session feedback report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackReport'
+
+components:
+  schemas:
+    UserRegistration:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          example: "Muhammet Yasin"
+        email:
+          type: string
+          format: email
+          example: "yasin@example.com"
+        password:
+          type: string
+          format: password
+
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Token for session management
+        userId:
+          type: integer
+
+    Topic:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "Job Interview Practice"
+        description:
+          type: string
+          example: "Practice common interview questions."
+
+    TopicInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+
+    ChatMessage:
+      type: object
+      required:
+        - sessionId
+        - text
+      properties:
+        sessionId:
+          type: string
+          example: "sess_12345"
+        text:
+          type: string
+          description: Transcribed text from Web Speech API
+          example: "I am go to the store."
+
+    ChatResponse:
+      type: object
+      properties:
+        aiResponse:
+          type: string
+          description: Text to be synthesized by TTS
+          example: "That's great! What are you planning to buy?"
+        grammarCorrections:
+          type: array
+          items:
+            type: string
+          example: ["Correction: 'I am going to the store.' instead of 'I am go to the store.'"]
+
+    FeedbackReport:
+      type: object
+      properties:
+        score:
+          type: integer
+          example: 85
+        grammarFeedback:
+          type: string
+          example: "Good overall, but pay attention to present continuous tense."
+        fluencyEstimate:
+          type: string
+          example: "Calculated via text heuristics: 120 WPM"
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Server or Gemini API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
